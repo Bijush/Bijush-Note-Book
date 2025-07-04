@@ -15,7 +15,7 @@ else:
     cred = credentials.Certificate(json.loads(os.environ["FIREBASE_CREDENTIALS"]))
 
 firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://note-book-464907-default-rtdb.firebaseio.com'
+    'databaseURL': 'https://note-book-464907-default-rtdb.firebaseio.com/'
 })
 
 ref = db.reference('/')  # Root reference
