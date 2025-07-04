@@ -1,20 +1,24 @@
 from flask import Flask, render_template_string, request, redirect, url_for
-import os
 import json
+import os
 import markdown
 from datetime import datetime
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, db
 
 app = Flask(__name__)
 
-# Initialize Firebase Admin SDK
+# Initialize Firebase Admin SDK with Realtime Database
 if os.path.exists("serviceAccountKey.json"):
     cred = credentials.Certificate("serviceAccountKey.json")
 else:
     cred = credentials.Certificate(json.loads(os.environ["FIREBASE_CREDENTIALS"]))
-firebase_admin.initialize_app(cred)
-db = firestore.client()
+
+firebase_admin.initialize_app(cred, {
+    'databaseURL': 'https://bijus-app-52978.firebaseio.com'
+})
+
+ref = db.reference('/')  # Root reference
 
 HTML = """
 <!DOCTYPE html>
@@ -33,7 +37,6 @@ HTML = """
             flex-direction: column;
             height: 100vh;
         }
-
         header {
             padding: 20px;
             background: #202123;
@@ -43,7 +46,6 @@ HTML = """
             color: #fff;
             border-bottom: 1px solid #444;
         }
-
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -145,13 +147,13 @@ HTML = """
 <body>
 <header>📓 BIJUSH NOTEBOOK</header>
     <div class="chat-container" id="chat">
-        {% for note in notes %}
+        {% for key, note in notes.items() %}
         <div class="message">
             {{ note["html"] | safe }}
             <div class="meta">
                 Saved: {{ note["time"] }}
                 <form method="post" style="display:inline;">
-                    <input type="hidden" name="delete" value="{{ note['id'] }}">
+                    <input type="hidden" name="delete" value="{{ key }}">
                     <button type="submit" class="delete-btn">Delete</button>
                 </form>
             </div>
@@ -192,31 +194,30 @@ chat.scrollTop = chat.scrollHeight;
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    notes_ref = ref.child('notes')
+
     if request.method == "POST":
         if "clear_all" in request.form:
-            docs = db.collection("notes").stream()
-            for doc in docs:
-                doc.reference.delete()
+            notes_ref.delete()
             return redirect(url_for("index"))
 
         if "delete" in request.form:
-            doc_id = request.form["delete"]
-            db.collection("notes").document(doc_id).delete()
+            key = request.form["delete"]
+            notes_ref.child(key).delete()
             return redirect(url_for("index"))
 
-        note = request.form["note"].strip()
-        if note:
+        note = request.form["note"]
+        if note.strip():
             html_note = markdown.markdown(note, extensions=["fenced_code", "codehilite"])
-            db.collection("notes").add({
-                "raw": note,
+            new_note = {
+                "raw": note.strip(),
                 "html": html_note,
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M")
-            })
-        return redirect(url_for("index"))
+            }
+            notes_ref.push(new_note)
+            return redirect(url_for("index"))
 
-    # Load all notes
-    docs = db.collection("notes").order_by("time").stream()
-    notes = [{"id": doc.id, **doc.to_dict()} for doc in docs]
+    notes = notes_ref.get() or {}
     return render_template_string(HTML, notes=notes)
 
 if __name__ == "__main__":
