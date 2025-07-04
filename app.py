@@ -9,13 +9,13 @@ from firebase_admin import credentials, firestore
 app = Flask(__name__)
 
 # Initialize Firebase Admin SDK
-
 if os.path.exists("serviceAccountKey.json"):
     cred = credentials.Certificate("serviceAccountKey.json")
 else:
     cred = credentials.Certificate(json.loads(os.environ["FIREBASE_CREDENTIALS"]))
 firebase_admin.initialize_app(cred)
 db = firestore.client()
+notes_ref = db.collection("notes")
 
 HTML = """
 <!DOCTYPE html>
@@ -34,9 +34,7 @@ HTML = """
             flex-direction: column;
             height: 100vh;
         }
-
-
-header {
+        header {
             padding: 20px;
             background: #202123;
             text-align: center;
@@ -45,7 +43,6 @@ header {
             color: #fff;
             border-bottom: 1px solid #444;
         }
-
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -145,32 +142,31 @@ header {
     </style>
 </head>
 <body>
-<header>📓 BIJUSH NOTE BOOK
-</header>
-    <div class="chat-container" id="chat">
-        {% for note in notes %}
-        <div class="message">
-            {{ note["html"] | safe }}
-            <div class="meta">
-                Saved: {{ note["time"] }}
-                <form method="post" style="display:inline;">
-                    <input type="hidden" name="delete" value="{{ loop.index0 }}">
-                    <button type="submit" class="delete-btn">Delete</button>
-                </form>
-            </div>
+<header>📓 BIJUSH NOTE BOOK</header>
+<div class="chat-container" id="chat">
+    {% for note in notes %}
+    <div class="message">
+        {{ note["html"] | safe }}
+        <div class="meta">
+            Saved: {{ note["time"] }}
+            <form method="post" style="display:inline;">
+                <input type="hidden" name="delete" value="{{ note['id'] }}">
+                <button type="submit" class="delete-btn">Delete</button>
+            </form>
         </div>
-        {% endfor %}
-        {% if notes %}
-        <form method="post">
-            <input type="hidden" name="clear_all" value="1">
-            <button type="submit" class="clear-btn" onclick="return confirm('Clear ALL notes?')">Clear All</button>
-        </form>
-        {% endif %}
     </div>
-    <form method="post" class="input-area">
-        <textarea name="note" rows="3" placeholder="Write command, explanation, markdown..."></textarea>
-        <button type="submit" class="send-btn">Save</button>
+    {% endfor %}
+    {% if notes %}
+    <form method="post">
+        <input type="hidden" name="clear_all" value="1">
+        <button type="submit" class="clear-btn" onclick="return confirm('Clear ALL notes?')">Clear All</button>
     </form>
+    {% endif %}
+</div>
+<form method="post" class="input-area">
+    <textarea name="note" rows="3" placeholder="Write command, explanation, markdown..."></textarea>
+    <button type="submit" class="send-btn">Save</button>
+</form>
 <script>
 document.querySelectorAll('pre').forEach(function(pre) {
     const button = document.createElement('button');
@@ -185,7 +181,6 @@ document.querySelectorAll('pre').forEach(function(pre) {
         });
     });
 });
-
 var chat = document.getElementById("chat");
 chat.scrollTop = chat.scrollHeight;
 </script>
@@ -197,24 +192,28 @@ chat.scrollTop = chat.scrollHeight;
 def index():
     if request.method == "POST":
         if "clear_all" in request.form:
-            notes.clear()
-            if os.path.exists(DATA_FILE):
-                os.remove(DATA_FILE)
+            docs = notes_ref.stream()
+            for doc in docs:
+                doc.reference.delete()
             return redirect(url_for("index"))
+
         if "delete" in request.form:
-            idx = int(request.form["delete"])
-            if 0 <= idx < len(notes):
-                notes.pop(idx)
-                with open(DATA_FILE, "w") as f:
-                    json.dump(notes, f, indent=2)
+            note_id = request.form["delete"]
+            notes_ref.document(note_id).delete()
             return redirect(url_for("index"))
+
         note = request.form["note"]
         if note.strip():
             html_note = markdown.markdown(note, extensions=["fenced_code", "codehilite"])
-            notes.append({"raw": note.strip(), "html": html_note, "time": datetime.now().strftime("%Y-%m-%d %H:%M")})
-            with open(DATA_FILE, "w") as f:
-                json.dump(notes, f, indent=2)
+            notes_ref.add({
+                "raw": note.strip(),
+                "html": html_note,
+                "time": datetime.now().strftime("%Y-%m-%d %H:%M")
+            })
         return redirect(url_for("index"))
+
+    docs = notes_ref.order_by("time").stream()
+    notes = [{"id": doc.id, **doc.to_dict()} for doc in docs]
     return render_template_string(HTML, notes=notes)
 
 if __name__ == "__main__":
