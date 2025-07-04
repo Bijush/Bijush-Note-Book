@@ -23,7 +23,7 @@ firebase_admin.initialize_app(cred, {
 ref = db.reference('/')  # Root
 
 # ===========================
-# ✅ HTML Template
+# ✅ HTML Template with SEARCH
 # ===========================
 HTML = """
 <!DOCTYPE html>
@@ -31,10 +31,13 @@ HTML = """
 <head>
     <title>📓 Termux Notebook</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/pygments/2.17.2/styles/monokai.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare/ajax/libs/pygments/2.17.2/styles/monokai.min.css" rel="stylesheet">
     <style>
         body { background-color: #343541; color: #d1d5db; font-family: Arial, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
         header { padding: 20px; background: #202123; text-align: center; font-size: 24px; font-weight: bold; color: #fff; border-bottom: 1px solid #444; }
+        .search-bar { padding: 10px; background: #40414f; display: flex; }
+        .search-bar input { flex: 1; padding: 8px; font-size: 16px; border-radius: 5px; border: none; outline: none; background: #343541; color: #fff; }
+        .search-bar button { margin-left: 10px; background: #10a37f; border: none; color: white; padding: 8px 16px; font-size: 16px; border-radius: 5px; cursor: pointer; }
         .chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
         .message { background-color: #444654; padding: 15px; border-radius: 10px; margin: 8px 0; max-width: 95%; position: relative; word-wrap: break-word; }
         .message pre { position: relative; background-color: #202123 !important; padding: 15px; border-radius: 6px; overflow-x: auto; font-family: monospace; margin: 10px 0; }
@@ -53,6 +56,12 @@ HTML = """
 </head>
 <body>
 <header>📓 BIJUSH NOTEBOOK</header>
+
+    <form method="get" class="search-bar">
+        <input type="text" name="q" placeholder="🔍 Search notes..." value="{{ q }}">
+        <button type="submit">Search</button>
+    </form>
+
     <div class="chat-container" id="chat">
         {% for key, note in notes.items() %}
         <div class="message">
@@ -116,7 +125,7 @@ chat.scrollTop = chat.scrollHeight;
 PAGE_SIZE = 10
 
 # ===========================
-# ✅ Main route with pagination
+# ✅ Main route with search + pagination
 # ===========================
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -143,24 +152,29 @@ def index():
             notes_ref.push(new_note)
             return redirect(url_for("index"))
 
+    # ✅ Search keyword
+    q = request.args.get('q', '').strip().lower()
+
     # ✅ Pagination logic
     last_key = request.args.get('last_key')
-    query = notes_ref.order_by_key().limit_to_last(PAGE_SIZE + 1)
-    if last_key:
-        query = query.end_at(last_key)
-
+    query = notes_ref.order_by_key().limit_to_last(200)  # fetch more if searching
     snapshot = query.get() or {}
     notes = dict(snapshot)
 
+    # ✅ Filter if searching
+    if q:
+        notes = {k: v for k, v in notes.items() if q in v.get('raw', '').lower()}
+
+    # ✅ Manual pagination after filtering
+    sorted_keys = sorted(notes.keys(), reverse=True)
+    page_keys = sorted_keys[:PAGE_SIZE]
+    page_notes = {k: notes[k] for k in page_keys}
+
     next_last_key = None
-    if len(notes) > PAGE_SIZE:
-        sorted_keys = sorted(notes.keys())
-        next_last_key = sorted_keys[0]
-        del notes[next_last_key]
+    if len(sorted_keys) > PAGE_SIZE:
+        next_last_key = sorted_keys[PAGE_SIZE]
 
-    notes = dict(sorted(notes.items(), reverse=True))  # Show newest first
-
-    return render_template_string(HTML, notes=notes, next_last_key=next_last_key, prev_key=last_key)
+    return render_template_string(HTML, notes=page_notes, next_last_key=next_last_key, prev_key=last_key, q=q)
 
 # ===========================
 # ✅ Run
