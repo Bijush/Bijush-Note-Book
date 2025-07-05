@@ -85,37 +85,34 @@
     .message pre code {
         display: block;
     }
-   pre {
-    position: relative;
-    background: #2d2d2d;
-    color: #f8f8f2;
-    padding: 1em;
-    border-radius: 8px;
-    overflow: auto;
-    font-family: monospace;
-}
-
-.copy-code {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background-color: #00b894;
-    color: white;
-    border: none;
-    padding: 6px 10px;
-    font-size: 0.85em;
-    border-radius: 5px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-family: sans-serif;
-}
-
-.copy-code::before {
-    content: "📋";
-}
-
+    pre {
+        position: relative;
+        background: #2d2d2d;
+        color: #f8f8f2;
+        padding: 1em;
+        border-radius: 8px;
+        overflow: auto;
+        font-family: monospace;
+    }
+    .copy-code {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background-color: #00b894;
+        color: white;
+        border: none;
+        padding: 6px 10px;
+        font-size: 0.85em;
+        border-radius: 5px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-family: sans-serif;
+    }
+    .copy-code::before {
+        content: "📋";
+    }
     .meta {
         font-size: 12px;
         color: #aaa;
@@ -181,18 +178,15 @@
         cursor: pointer;
     }
 </style>
-
 </head>
 <body>
 <header>📓 BIJUSH NOTE BOOK</header>
- 
-<!-- 🔍 Search -->
+
 <form method="get" class="search-bar">
     <input type="text" name="q" placeholder="🔍 Search notes..." value="{{ q }}">
     <button type="submit">Search</button>
 </form>
 
-<!-- 🏷️ Tags -->
 <div class="tag-bar">
     <a href="/" class="{{ '' if selected_tag else 'selected' }}">All</a>
     {% for tag in all_tags %}
@@ -200,7 +194,6 @@
     {% endfor %}
 </div>
 
-<!-- 📝 Notes -->
 <div class="chat-container" id="chat">
     {% for key, note in notes.items() %}
     <div class="message">
@@ -210,18 +203,15 @@
         {% endif %}
         <div class="meta">
             Saved: {{ note.get("time", "N/A") }}
-            <!-- 🗑️ Delete -->
             <form method="post" style="display:inline;">
                 <input type="hidden" name="delete" value="{{ key }}">
                 <button type="submit" class="delete-btn">Delete</button>
             </form>
-            <!-- ✏️ Edit -->
             <button class="edit-btn" onclick="editNote(`{{ key }}`, `{{ note['raw'] | escape | replace('\n', '&#10;') }}`, `{{ note.get('tags', []) | join(',') }}`)">Edit</button>
         </div>
     </div>
     {% endfor %}
 
-    <!-- 📄 Pagination -->
     <div class="pagination">
         {% if next_last_key %}
             <a href="/?last_key={{ next_last_key }}{% if q %}&q={{ q }}{% endif %}{% if selected_tag %}&tag={{ selected_tag }}{% endif %}">Next Page ⏭️</a>
@@ -231,7 +221,6 @@
         {% endif %}
     </div>
 
-    <!-- 🧹 Clear All -->
     {% if notes %}
     <form method="post">
         <input type="hidden" name="clear_all" value="1">
@@ -240,7 +229,6 @@
     {% endif %}
 </div>
 
-<!-- ➕ Input Area -->
 <form method="post" class="input-area" id="noteForm">
     <input type="hidden" name="edit_id" id="edit_id">
     <textarea name="note" id="note_input" rows="3" placeholder="Write command, explanation, markdown..."></textarea>
@@ -248,7 +236,7 @@
     <button type="submit" class="send-btn">Save</button>
 </form>
 
-<!-- ✅ Scripts -->
+<!-- ✅ Copy Code Script -->
 <script>
 document.querySelectorAll('pre').forEach(function(pre) {
     const button = document.createElement('button');
@@ -256,8 +244,9 @@ document.querySelectorAll('pre').forEach(function(pre) {
     button.className = 'copy-code';
 
     button.addEventListener('click', function () {
-        const code = pre.querySelector('code').innerText;
-        navigator.clipboard.writeText(code).then(() => {
+        const codeBlock = pre.querySelector('code');
+        const text = codeBlock ? codeBlock.innerText : pre.innerText;
+        navigator.clipboard.writeText(text).then(() => {
             button.innerText = '✅ Copied!';
             setTimeout(() => button.innerText = 'Copy code', 1500);
         });
@@ -265,20 +254,15 @@ document.querySelectorAll('pre').forEach(function(pre) {
 
     pre.appendChild(button);
 });
+</script>
 
-    button.addEventListener('click', function() {
-        const code = pre.querySelector('code').innerText;
-        navigator.clipboard.writeText(code).then(() => {
-            button.innerText = 'Copied!';
-            setTimeout(() => button.innerText = 'Copy code', 1000);
-        });
-    });
-});
-
-// ✅ Scroll to bottom
+<!-- ✅ Scroll to bottom -->
+<script>
 document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+</script>
 
-// ✅ Edit note handler
+<!-- ✅ Edit handler -->
+<script>
 function editNote(id, raw, tags) {
     document.getElementById("edit_id").value = id;
     document.getElementById("note_input").value = raw.replaceAll("&#10;", "\n");
@@ -286,5 +270,6 @@ function editNote(id, raw, tags) {
     document.getElementById("note_input").focus();
 }
 </script>
+
 </body>
 </html>
