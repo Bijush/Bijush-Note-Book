@@ -34,15 +34,16 @@ def render_markdown(md_text):
 def index():
     notes_ref = ref.child('notes')
 
-    # 🔁 Handle POST actions
+    # 🔁 Handle POST (add/edit/delete/clear)
     if request.method == "POST":
         if "clear_all" in request.form:
             notes_ref.delete()
             return redirect(url_for("index"))
 
         if "delete" in request.form:
-            key = request.form["delete"]
-            notes_ref.child(key).delete()
+            key = request.form["delete"].strip()
+            if key:
+                notes_ref.child(key).delete()
             return redirect(url_for("index"))
 
         note_text = request.form.get("note", "").strip()
@@ -52,17 +53,16 @@ def index():
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
         edit_id = request.form.get("edit_id", "").strip()
-if edit_id:
-    # ✏️ Editing existing note
-    if note_text:
-        notes_ref.child(edit_id).update({
-            "raw": note_text,
-            "html": html_note,
-            "time": now,
-            "tags": tags
-        })
-    return redirect(url_for("index"))
-
+        if edit_id:
+            # ✏️ Edit existing note
+            if note_text:
+                notes_ref.child(edit_id).update({
+                    "raw": note_text,
+                    "html": html_note,
+                    "time": now,
+                    "tags": tags
+                })
+            return redirect(url_for("index"))
 
         # ➕ Add new note
         if note_text:
@@ -79,15 +79,14 @@ if edit_id:
     tag_filter = request.args.get('tag', '').strip().lower()
     last_key = request.args.get('last_key')
 
-    # ⬇️ Fetch notes
     snapshot = notes_ref.order_by_key().limit_to_last(200).get() or {}
     notes = dict(snapshot)
 
-    # 🔎 Filter by query
+    # 🔎 Search
     if q:
         notes = {k: v for k, v in notes.items() if q in v.get('raw', '').lower()}
 
-    # 🏷️ Filter by tag
+    # 🏷️ Tag Filter
     if tag_filter:
         notes = {
             k: v for k, v in notes.items()
@@ -103,7 +102,7 @@ if edit_id:
     if len(sorted_keys) > PAGE_SIZE:
         next_last_key = sorted_keys[PAGE_SIZE]
 
-    # 🏷️ Collect unique tags
+    # 🏷️ Tag List
     all_tags = set()
     for note in notes.values():
         for tag in note.get("tags", []):
