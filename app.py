@@ -23,7 +23,7 @@ firebase_admin.initialize_app(cred, {
 ref = db.reference('/')  # Root
 
 # ===========================
-# ✅ HTML Template with improved Copy & Label
+# ✅ HTML Template with fixed Copy button
 # ===========================
 HTML = """
 <!DOCTYPE html>
@@ -40,31 +40,10 @@ HTML = """
         .search-bar button { margin-left: 10px; background: #10a37f; border: none; color: white; padding: 8px 16px; font-size: 16px; border-radius: 5px; cursor: pointer; }
         .chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
         .message { background-color: #444654; padding: 15px; border-radius: 10px; margin: 8px 0; max-width: 95%; position: relative; word-wrap: break-word; }
-        .message pre { position: relative; background-color: #202123 !important; padding: 30px 15px 15px 70px; border-radius: 6px; overflow-x: auto; font-family: monospace; margin: 10px 0; }
-        .message pre code { display: block; }
-        .language-label {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            background: #4b5563;
-            color: #fff;
-            font-size: 12px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            text-transform: uppercase;
-        }
-        .copy-code {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: #10a37f;
-            border: none;
-            color: white;
-            padding: 4px 8px;
-            font-size: 12px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
+        .code-container { position: relative; margin: 10px 0; }
+        .code-container pre { padding: 30px 15px 15px 70px; background-color: #202123 !important; border-radius: 6px; overflow-x: auto; font-family: monospace; }
+        .language-label { position: absolute; top: 8px; left: 8px; background: #4b5563; color: #fff; font-size: 12px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+        .copy-code { position: absolute; top: 8px; right: 8px; background: #10a37f; border: none; color: white; padding: 4px 8px; font-size: 12px; border-radius: 4px; cursor: pointer; }
         .message h1, .message h2, .message h3 { color: #fff; margin: 10px 0 5px; }
         .input-area { display: flex; padding: 10px; background: #40414f; }
         textarea { flex: 1; resize: none; padding: 10px; font-size: 16px; border-radius: 5px; border: none; outline: none; background: #343541; color: #fff; }
@@ -79,49 +58,54 @@ HTML = """
 <body>
 <header>📓 BIJUSH NOTEBOOK</header>
 
-    <form method="get" class="search-bar">
-        <input type="text" name="q" placeholder="🔍 Search notes..." value="{{ q }}">
-        <button type="submit">Search</button>
-    </form>
+<form method="get" class="search-bar">
+    <input type="text" name="q" placeholder="🔍 Search notes..." value="{{ q }}">
+    <button type="submit">Search</button>
+</form>
 
-    <div class="chat-container" id="chat">
-        {% for key, note in notes.items() %}
-        <div class="message">
-            {{ note["html"] | safe }}
-            <div class="meta">
-                Saved: {{ note["time"] }}
-                <form method="post" style="display:inline;">
-                    <input type="hidden" name="delete" value="{{ key }}">
-                    <button type="submit" class="delete-btn">Delete</button>
-                </form>
-            </div>
+<div class="chat-container" id="chat">
+    {% for key, note in notes.items() %}
+    <div class="message">
+        {{ note["html"] | safe }}
+        <div class="meta">
+            Saved: {{ note["time"] }}
+            <form method="post" style="display:inline;">
+                <input type="hidden" name="delete" value="{{ key }}">
+                <button type="submit" class="delete-btn">Delete</button>
+            </form>
         </div>
-        {% endfor %}
+    </div>
+    {% endfor %}
 
-        <div class="pagination">
-            {% if next_last_key %}
-                <a href="/?last_key={{ next_last_key }}">Next Page ⏭️</a>
-            {% endif %}
-            {% if prev_key %}
-                <a href="/">⬅️ First Page</a>
-            {% endif %}
-        </div>
-
-        {% if notes %}
-        <form method="post">
-            <input type="hidden" name="clear_all" value="1">
-            <button type="submit" class="clear-btn" onclick="return confirm('Clear ALL notes?')">Clear All</button>
-        </form>
+    <div class="pagination">
+        {% if next_last_key %}
+            <a href="/?last_key={{ next_last_key }}">Next Page ⏭️</a>
+        {% endif %}
+        {% if prev_key %}
+            <a href="/">⬅️ First Page</a>
         {% endif %}
     </div>
 
-    <form method="post" class="input-area">
-        <textarea name="note" rows="3" placeholder="Write command, explanation, markdown..."></textarea>
-        <button type="submit" class="send-btn">Save</button>
+    {% if notes %}
+    <form method="post">
+        <input type="hidden" name="clear_all" value="1">
+        <button type="submit" class="clear-btn" onclick="return confirm('Clear ALL notes?')">Clear All</button>
     </form>
+    {% endif %}
+</div>
+
+<form method="post" class="input-area">
+    <textarea name="note" rows="3" placeholder="Write command, explanation, markdown..."></textarea>
+    <button type="submit" class="send-btn">Save</button>
+</form>
 
 <script>
 document.querySelectorAll('pre').forEach(function(pre) {
+    const container = document.createElement('div');
+    container.className = 'code-container';
+    pre.parentNode.insertBefore(container, pre);
+    container.appendChild(pre);
+
     let lang = 'code';
     const codeTag = pre.querySelector('code');
     if (codeTag && codeTag.className) {
@@ -133,13 +117,13 @@ document.querySelectorAll('pre').forEach(function(pre) {
 
     const label = document.createElement('span');
     label.className = 'language-label';
-    label.innerText = lang;
-    pre.appendChild(label);
+    label.innerText = lang.toUpperCase();
+    container.appendChild(label);
 
     const button = document.createElement('button');
     button.innerText = 'Copy';
     button.className = 'copy-code';
-    pre.appendChild(button);
+    container.appendChild(button);
 
     button.addEventListener('click', function() {
         const code = codeTag ? codeTag.innerText : pre.innerText;
@@ -190,15 +174,20 @@ def index():
             notes_ref.push(new_note)
             return redirect(url_for("index"))
 
+    # ✅ Search keyword
     q = request.args.get('q', '').strip().lower()
+
+    # ✅ Pagination logic
     last_key = request.args.get('last_key')
-    query = notes_ref.order_by_key().limit_to_last(200)
+    query = notes_ref.order_by_key().limit_to_last(200)  # fetch more if searching
     snapshot = query.get() or {}
     notes = dict(snapshot)
 
+    # ✅ Filter if searching
     if q:
         notes = {k: v for k, v in notes.items() if q in v.get('raw', '').lower()}
 
+    # ✅ Manual pagination after filtering
     sorted_keys = sorted(notes.keys(), reverse=True)
     page_keys = sorted_keys[:PAGE_SIZE]
     page_notes = {k: notes[k] for k in page_keys}
