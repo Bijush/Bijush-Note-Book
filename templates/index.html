@@ -1,274 +1,149 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>📓 Termux Notebook</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/pygments/2.17.2/styles/monokai.min.css" rel="stylesheet">
-    
-<style>
+  <meta charset="UTF-8">
+  <title>📝 Markdown Notebook</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
     body {
-        background-color: #343541;
-        color: #d1d5db;
-        font-family: Arial, sans-serif;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      margin: 20px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
     }
-    header {
-        padding: 20px;
-        background: #202123;
-        text-align: center;
-        font-size: 24px;
-        font-weight: bold;
-        color: #fff;
-        border-bottom: 1px solid #444;
+
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      margin-bottom: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: monospace;
     }
-    .search-bar, .tag-bar {
-        padding: 10px;
-        background: #40414f;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+
+    .note {
+      border: 1px solid #ccc;
+      padding: 12px;
+      margin-bottom: 16px;
+      border-radius: 6px;
+      background: #f9f9f9;
     }
-    .search-bar input {
-        flex: 1;
-        padding: 8px;
-        font-size: 16px;
-        border-radius: 5px;
-        border: none;
-        background: #343541;
-        color: #fff;
+
+    .note pre {
+      background: #272822;
+      color: #f8f8f2;
+      padding: 10px;
+      overflow-x: auto;
+      border-radius: 4px;
     }
-    .search-bar button {
-        background: #10a37f;
-        border: none;
-        color: white;
-        padding: 8px 16px;
-        font-size: 16px;
-        border-radius: 5px;
-        cursor: pointer;
+
+    .note time {
+      font-size: 0.9em;
+      color: #555;
     }
-    .tag-bar a {
-        background: #10a37f;
-        color: white;
-        padding: 6px 12px;
-        font-size: 14px;
-        border-radius: 5px;
-        text-decoration: none;
+
+    .tags {
+      font-size: 0.9em;
+      color: #0074d9;
     }
-    .tag-bar a.selected {
-        background: #2563eb;
+
+    .actions {
+      margin-top: 10px;
     }
-    .chat-container {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
+
+    button, select {
+      margin-top: 6px;
+      margin-right: 6px;
+      padding: 6px 12px;
     }
-    .message {
-        background-color: #444654;
-        padding: 15px;
-        border-radius: 10px;
-        margin: 8px 0;
-        position: relative;
+
+    .copy-btn {
+      float: right;
+      font-size: 0.8em;
+      cursor: pointer;
+      color: #0074d9;
+      border: none;
+      background: none;
     }
-    .message pre {
-        position: relative;
-        background-color: #202123 !important;
-        padding: 15px;
-        border-radius: 6px;
-        overflow-x: auto;
-        font-family: monospace;
-    }
-    .message pre code {
-        display: block;
-    }
-    pre {
-        position: relative;
-        padding-right: 0 !important;
-    background-color: #1e1e1e;
-        color: #f8f8f2;
-        padding: 1em;
-        border-radius: 8px;
-        overflow: auto;
-        font-family: monospace;
-    }
-    .copy-code {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        background-color: #00b894;
-        color: white;
-        border: none;
-        padding: 6px 10px;
-        font-size: 0.85em;
-        border-radius: 5px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-family: sans-serif;
-    }
-    
-    .meta {
-        font-size: 12px;
-        color: #aaa;
-        margin-top: 5px;
-    }
-    .delete-btn, .edit-btn {
-        background: #ef4444;
-        border: none;
-        color: white;
-        padding: 4px 8px;
-        font-size: 12px;
-        border-radius: 3px;
-        cursor: pointer;
-        margin-left: 10px;
-    }
-    .edit-btn {
-        background: #3b82f6;
-    }
-    .clear-btn {
-        background: #ef4444;
-        border: none;
-        color: white;
-        padding: 6px 12px;
-        font-size: 14px;
-        border-radius: 5px;
-        cursor: pointer;
-        margin: 10px auto;
-    }
-    .pagination {
-        text-align: center;
-        margin: 15px;
-    }
-    .pagination a {
-        color: #10a37f;
-        text-decoration: none;
-        margin: 0 10px;
-    }
-    .input-area {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        padding: 10px;
-        background: #40414f;
-    }
-    textarea, input[name="tags"] {
+
+    @media (max-width: 600px) {
+      body {
+        margin: 10px;
+      }
+
+      button, select {
         width: 100%;
-        resize: none;
-        padding: 10px;
-        font-size: 16px;
-        border-radius: 5px;
-        border: none;
-        background: #343541;
-        color: #fff;
+        margin-bottom: 10px;
+      }
     }
-    .send-btn {
-        align-self: flex-end;
-        background: #10a37f;
-        border: none;
-        color: white;
-        padding: 10px 16px;
-        font-size: 16px;
-        border-radius: 5px;
-        cursor: pointer;
-    }
-</style>
+  </style>
 </head>
 <body>
-<header>📓 BIJUSH NOTE BOOK</header>
+  <h1>📝 Markdown Notebook</h1>
 
-<form method="get" class="search-bar">
-    <input type="text" name="q" placeholder="🔍 Search notes..." value="{{ q }}">
-    <button type="submit">Search</button>
-</form>
+  <!-- 🔍 Search + Tag filter -->
+  <form method="get" style="margin-bottom: 20px;">
+    <input type="text" name="q" placeholder="Search..." value="{{ q }}">
+    <select name="tag">
+      <option value="">-- Filter by tag --</option>
+      {% for tag in all_tags %}
+        <option value="{{ tag }}" {% if tag == selected_tag %}selected{% endif %}>{{ tag }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">🔍 Filter</button>
+    <a href="{{ url_for('index') }}">Clear</a>
+  </form>
 
-<div class="tag-bar">
-    <a href="/" class="{{ '' if selected_tag else 'selected' }}">All</a>
-    {% for tag in all_tags %}
-        <a href="/?tag={{ tag }}" class="{% if tag == selected_tag %}selected{% endif %}">{{ tag }}</a>
-    {% endfor %}
-</div>
+  <!-- ➕ Note form -->
+  <form method="post">
+    <textarea name="note" rows="6" placeholder="Write a note in Markdown..."></textarea>
+    <input type="text" name="tags" placeholder="Comma-separated tags (e.g. idea, todo)">
+    <input type="hidden" name="edit_id" id="edit-id">
+    <button type="submit">💾 Save</button>
+    <button type="submit" name="clear_all" onclick="return confirm('Clear all notes?')">🗑️ Clear All</button>
+  </form>
 
-<div class="chat-container" id="chat">
-    {% for key, note in notes.items() %}
-    <div class="message">
-        {{ note["html"] | safe }}
-        {% if note.get("tags") %}
-            <div><strong>Tags:</strong> {{ note["tags"] | join(", ") }}</div>
-        {% endif %}
-        <div class="meta">
-            Saved: {{ note.get("time", "N/A") }}
-            <form method="post" style="display:inline;">
-                <input type="hidden" name="delete" value="{{ key }}">
-                <button type="submit" class="delete-btn">Delete</button>
-            </form>
-            <button class="edit-btn" onclick="editNote(`{{ key }}`, `{{ note['raw'] | escape | replace('\n', '&#10;') }}`, `{{ note.get('tags', []) | join(',') }}`)">Edit</button>
-        </div>
+  <!-- 📄 Notes List -->
+  {% for key, note in notes.items() %}
+    <div class="note">
+      <time>🕒 {{ note.time }}</time>
+      <button class="copy-btn" onclick="copyToClipboard(this)">📋 Copy</button>
+      <div class="content">{{ note.html|safe }}</div>
+      {% if note.tags %}
+        <div class="tags">🏷️ {{ note.tags | join(', ') }}</div>
+      {% endif %}
+      <div class="actions">
+        <form method="post" style="display:inline;">
+          <input type="hidden" name="delete" value="{{ key }}">
+          <button type="submit" onclick="return confirm('Delete this note?')">❌ Delete</button>
+        </form>
+        <button onclick="editNote(`{{ note.raw | escape }}`, `{{ note.tags | join(', ') | escape }}`, '{{ key }}')">✏️ Edit</button>
+      </div>
     </div>
-    {% endfor %}
+  {% endfor %}
 
-    <div class="pagination">
-        {% if next_last_key %}
-            <a href="/?last_key={{ next_last_key }}{% if q %}&q={{ q }}{% endif %}{% if selected_tag %}&tag={{ selected_tag }}{% endif %}">Next Page ⏭️</a>
-        {% endif %}
-        {% if prev_key %}
-            <a href="/">⬅️ First Page</a>
-        {% endif %}
-    </div>
+  <!-- 📄 Pagination (if needed) -->
+  {% if next_last_key %}
+    <a href="{{ url_for('index', last_key=next_last_key, q=q, tag=selected_tag) }}">Next →</a>
+  {% endif %}
 
-    {% if notes %}
-    <form method="post">
-        <input type="hidden" name="clear_all" value="1">
-        <button type="submit" class="clear-btn" onclick="return confirm('Clear ALL notes?')">Clear All</button>
-    </form>
-    {% endif %}
-</div>
+  <script>
+    function editNote(raw, tags, id) {
+      document.querySelector('textarea[name="note"]').value = raw;
+      document.querySelector('input[name="tags"]').value = tags;
+      document.getElementById("edit-id").value = id;
+      window.scrollTo(0, 0);
+    }
 
-<form method="post" class="input-area" id="noteForm">
-    <input type="hidden" name="edit_id" id="edit_id">
-    <textarea name="note" id="note_input" rows="3" placeholder="Write command, explanation, markdown..."></textarea>
-    <input type="text" name="tags" id="tags_input" placeholder="Optional tags (comma-separated)">
-    <button type="submit" class="send-btn">Save</button>
-</form>
-
-<!-- ✅ Copy Code Script -->
-<script>
-document.querySelectorAll('pre').forEach(function(pre) {
-    const button = document.createElement('button');
-    button.innerText = 'Copy code';
-    button.className = 'copy-code';
-
-    button.addEventListener('click', function () {
-        const codeBlock = pre.querySelector('code');
-        const text = codeBlock ? codeBlock.innerText : pre.innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            button.innerText = '✅ Copied!';
-            setTimeout(() => button.innerText = 'Copy code', 1500);
-        });
-    });
-
-    pre.appendChild(button);
-});
-</script>
-
-<!-- ✅ Scroll to bottom -->
-<script>
-document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
-</script>
-
-<!-- ✅ Edit handler -->
-<script>
-function editNote(id, raw, tags) {
-    document.getElementById("edit_id").value = id;
-    document.getElementById("note_input").value = raw.replaceAll("&#10;", "\n");
-    document.getElementById("tags_input").value = tags;
-    document.getElementById("note_input").focus();
-}
-</script>
-
+    function copyToClipboard(btn) {
+      const code = btn.parentElement.querySelector(".content").innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.innerText = "✅ Copied";
+        setTimeout(() => btn.innerText = "📋 Copy", 1500);
+      });
+    }
+  </script>
 </body>
 </html>
