@@ -2,16 +2,15 @@ from flask import Flask, render_template_string, request, redirect, url_for
 import json
 import os
 import markdown
-from markdown.extensions import Extension
-from markdown.preprocessors import Preprocessor
-import re
 from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, db
 
 app = Flask(__name__)
 
+# ===========================
 # ✅ Initialize Firebase Admin
+# ===========================
 if os.path.exists("serviceAccountKey.json"):
     cred = credentials.Certificate("serviceAccountKey.json")
 else:
@@ -21,28 +20,11 @@ firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://note-book-464907-default-rtdb.firebaseio.com/'
 })
 
-ref = db.reference('/')
+ref = db.reference('/')  # Root
 
-# ✅ Custom Markdown Extension to wrap <pre> in .code-block with language label
-class CodeBlockProcessor(Preprocessor):
-    FENCED_BLOCK_RE = re.compile(
-        r'```([\w+-]*)\n(.*?)```',
-        re.DOTALL | re.MULTILINE
-    )
-
-    def run(self, lines):
-        text = "\n".join(lines)
-        def repl(m):
-            lang = m.group(1).strip() or "code"
-            code = m.group(2)
-            return f'<div class="code-block"><span class="language-label">{lang}</span><pre><code>{code}</code></pre></div>'
-        return self.FENCED_BLOCK_RE.sub(repl, text).split("\n")
-
-class CodeBlockExtension(Extension):
-    def extendMarkdown(self, md):
-        md.preprocessors.register(CodeBlockProcessor(md), 'code_block_processor', 25)
-
-# ✅ HTML Template
+# ===========================
+# ✅ HTML Template with improved Copy & Label
+# ===========================
 HTML = """
 <!DOCTYPE html>
 <html>
@@ -58,28 +40,19 @@ HTML = """
         .search-bar button { margin-left: 10px; background: #10a37f; border: none; color: white; padding: 8px 16px; font-size: 16px; border-radius: 5px; cursor: pointer; }
         .chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
         .message { background-color: #444654; padding: 15px; border-radius: 10px; margin: 8px 0; max-width: 95%; position: relative; word-wrap: break-word; }
-        .code-block { position: relative; margin: 20px 0; }
-        .code-block .language-label {
+        .message pre { position: relative; background-color: #202123 !important; padding: 30px 15px 15px 70px; border-radius: 6px; overflow-x: auto; font-family: monospace; margin: 10px 0; }
+        .message pre code { display: block; }
+        .language-label {
             position: absolute;
             top: 8px;
             left: 8px;
-            background: #10a37f;
-            color: white;
+            background: #4b5563;
+            color: #fff;
             font-size: 12px;
-            padding: 4px 8px;
+            padding: 2px 6px;
             border-radius: 4px;
-            font-family: monospace;
+            text-transform: uppercase;
         }
-        .code-block pre {
-            position: relative;
-            padding: 30px 50px 15px 70px; /* top right bottom left */
-            background: #202123 !important;
-            border-radius: 6px;
-            overflow-x: auto;
-            font-family: monospace;
-            margin: 10px 0;
-        }
-        .code-block pre code { display: block; }
         .copy-code {
             position: absolute;
             top: 8px;
@@ -148,20 +121,35 @@ HTML = """
     </form>
 
 <script>
-document.querySelectorAll('.code-block').forEach(function(block) {
-    const pre = block.querySelector('pre');
+document.querySelectorAll('pre').forEach(function(pre) {
+    let lang = 'code';
+    const codeTag = pre.querySelector('code');
+    if (codeTag && codeTag.className) {
+        const match = codeTag.className.match(/language-(\\w+)/);
+        if (match) {
+            lang = match[1];
+        }
+    }
+
+    const label = document.createElement('span');
+    label.className = 'language-label';
+    label.innerText = lang;
+    pre.appendChild(label);
+
     const button = document.createElement('button');
-    button.innerText = 'Copy code';
+    button.innerText = 'Copy';
     button.className = 'copy-code';
-    block.appendChild(button);
+    pre.appendChild(button);
+
     button.addEventListener('click', function() {
-        const code = pre.querySelector('code').innerText;
+        const code = codeTag ? codeTag.innerText : pre.innerText;
         navigator.clipboard.writeText(code).then(() => {
             button.innerText = 'Copied!';
-            setTimeout(() => button.innerText = 'Copy code', 1000);
+            setTimeout(() => button.innerText = 'Copy', 1000);
         });
     });
 });
+
 var chat = document.getElementById("chat");
 chat.scrollTop = chat.scrollHeight;
 </script>
@@ -169,9 +157,14 @@ chat.scrollTop = chat.scrollHeight;
 </html>
 """
 
+# ===========================
 # ✅ Page limit
+# ===========================
 PAGE_SIZE = 10
 
+# ===========================
+# ✅ Main route with search + pagination
+# ===========================
 @app.route("/", methods=["GET", "POST"])
 def index():
     notes_ref = ref.child('notes')
@@ -188,7 +181,7 @@ def index():
 
         note = request.form["note"]
         if note.strip():
-            html_note = markdown.markdown(note, extensions=["fenced_code", CodeBlockExtension()])
+            html_note = markdown.markdown(note, extensions=["fenced_code", "codehilite"])
             new_note = {
                 "raw": note.strip(),
                 "html": html_note,
@@ -216,5 +209,8 @@ def index():
 
     return render_template_string(HTML, notes=page_notes, next_last_key=next_last_key, prev_key=last_key, q=q)
 
+# ===========================
+# ✅ Run
+# ===========================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
