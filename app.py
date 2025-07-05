@@ -23,7 +23,7 @@ firebase_admin.initialize_app(cred, {
 ref = db.reference('/')  # Root
 
 # ===========================
-# ✅ HTML Template with PrismJS
+# ✅ HTML Template with fixed Copy button
 # ===========================
 HTML = """
 <!DOCTYPE html>
@@ -31,14 +31,7 @@ HTML = """
 <head>
     <title>📓 Termux Notebook</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <!-- ✅ PrismJS for syntax highlighting -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
-
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/pygments/2.17.2/styles/monokai.min.css" rel="stylesheet">
     <style>
         body { background-color: #343541; color: #d1d5db; font-family: Arial, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
         header { padding: 20px; background: #202123; text-align: center; font-size: 24px; font-weight: bold; color: #fff; border-bottom: 1px solid #444; }
@@ -48,7 +41,7 @@ HTML = """
         .chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
         .message { background-color: #444654; padding: 15px; border-radius: 10px; margin: 8px 0; max-width: 95%; position: relative; word-wrap: break-word; }
         .code-container { position: relative; margin: 10px 0; }
-        pre { border-radius: 6px; overflow-x: auto; }
+        .code-container pre { padding: 30px 15px 15px 70px; background-color: #202123 !important; border-radius: 6px; overflow-x: auto; font-family: monospace; }
         .language-label { position: absolute; top: 8px; left: 8px; background: #4b5563; color: #fff; font-size: 12px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
         .copy-code { position: absolute; top: 8px; right: 8px; background: #10a37f; border: none; color: white; padding: 4px 8px; font-size: 12px; border-radius: 4px; cursor: pointer; }
         .message h1, .message h2, .message h3 { color: #fff; margin: 10px 0 5px; }
@@ -186,13 +179,15 @@ def index():
 
     # ✅ Pagination logic
     last_key = request.args.get('last_key')
-    query = notes_ref.order_by_key().limit_to_last(200)
+    query = notes_ref.order_by_key().limit_to_last(200)  # fetch more if searching
     snapshot = query.get() or {}
     notes = dict(snapshot)
 
+    # ✅ Filter if searching
     if q:
         notes = {k: v for k, v in notes.items() if q in v.get('raw', '').lower()}
 
+    # ✅ Manual pagination after filtering
     sorted_keys = sorted(notes.keys(), reverse=True)
     page_keys = sorted_keys[:PAGE_SIZE]
     page_notes = {k: notes[k] for k in page_keys}
@@ -203,5 +198,8 @@ def index():
 
     return render_template_string(HTML, notes=page_notes, next_last_key=next_last_key, prev_key=last_key, q=q)
 
+# ===========================
+# ✅ Run
+# ===========================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
