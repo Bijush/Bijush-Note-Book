@@ -1,1 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>📓 Termux Notebook</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/pygments/2.17.2/styles/monokai.min.css" rel="stylesheet">
+    <style>
+        /* [KEEP YOUR EXISTING STYLES — UNCHANGED] */
+    </style>
+</head>
+<body>
+<header>📓 BIJUSH NOTEBOOK</header>
 
+<!-- 🔍 Search -->
+<form method="get" class="search-bar">
+    <input type="text" name="q" placeholder="🔍 Search notes..." value="{{ q }}">
+    <button type="submit">Search</button>
+</form>
+
+<!-- 🏷️ Tags -->
+<div class="tag-bar">
+    <a href="/" class="{{ '' if selected_tag else 'selected' }}">All</a>
+    {% for tag in all_tags %}
+        <a href="/?tag={{ tag }}" class="{% if tag == selected_tag %}selected{% endif %}">{{ tag }}</a>
+    {% endfor %}
+</div>
+
+<!-- 📝 Notes -->
+<div class="chat-container" id="chat">
+    {% for key, note in notes.items() %}
+    <div class="message">
+        {{ note["html"] | safe }}
+        {% if note.get("tags") %}
+            <div><strong>Tags:</strong> {{ note["tags"] | join(", ") }}</div>
+        {% endif %}
+        <div class="meta">
+            Saved: {{ note.get("time", "N/A") }}
+            <!-- 🗑️ Delete -->
+            <form method="post" style="display:inline;">
+                <input type="hidden" name="delete" value="{{ key }}">
+                <button type="submit" class="delete-btn">Delete</button>
+            </form>
+            <!-- ✏️ Edit -->
+            <button class="edit-btn" onclick="editNote(`{{ key }}`, `{{ note['raw'] | escape | replace('\n', '&#10;') }}`, `{{ note.get('tags', []) | join(',') }}`)">Edit</button>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- 📄 Pagination -->
+    <div class="pagination">
+        {% if next_last_key %}
+            <a href="/?last_key={{ next_last_key }}{% if q %}&q={{ q }}{% endif %}{% if selected_tag %}&tag={{ selected_tag }}{% endif %}">Next Page ⏭️</a>
+        {% endif %}
+        {% if prev_key %}
+            <a href="/">⬅️ First Page</a>
+        {% endif %}
+    </div>
+
+    <!-- 🧹 Clear All -->
+    {% if notes %}
+    <form method="post">
+        <input type="hidden" name="clear_all" value="1">
+        <button type="submit" class="clear-btn" onclick="return confirm('Clear ALL notes?')">Clear All</button>
+    </form>
+    {% endif %}
+</div>
+
+<!-- ➕ Input Area -->
+<form method="post" class="input-area" id="noteForm">
+    <input type="hidden" name="edit_id" id="edit_id">
+    <textarea name="note" id="note_input" rows="3" placeholder="Write command, explanation, markdown..."></textarea>
+    <input type="text" name="tags" id="tags_input" placeholder="Optional tags (comma-separated)">
+    <button type="submit" class="send-btn">Save</button>
+</form>
+
+<!-- ✅ Scripts -->
+<script>
+document.querySelectorAll('pre').forEach(function(pre) {
+    const button = document.createElement('button');
+    button.innerText = 'Copy code';
+    button.className = 'copy-code';
+    pre.appendChild(button);
+    button.addEventListener('click', function() {
+        const code = pre.querySelector('code').innerText;
+        navigator.clipboard.writeText(code).then(() => {
+            button.innerText = 'Copied!';
+            setTimeout(() => button.innerText = 'Copy code', 1000);
+        });
+    });
+});
+
+// ✅ Scroll to bottom
+document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+
+// ✅ Edit note handler
+function editNote(id, raw, tags) {
+    document.getElementById("edit_id").value = id;
+    document.getElementById("note_input").value = raw.replaceAll("&#10;", "\n");
+    document.getElementById("tags_input").value = tags;
+    document.getElementById("note_input").focus();
+}
+</script>
+</body>
+</html>
