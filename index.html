@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>📓 Termux Notebook</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/pygments/2.17.2/styles/monokai.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #343541;
+            color: #d1d5db;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        header {
+            padding: 20px;
+            background: #202123;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+            border-bottom: 1px solid #444;
+        }
+        .search-bar, .tag-bar {
+            padding: 10px;
+            background: #40414f;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 8px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: none;
+            background: #343541;
+            color: #fff;
+        }
+        .search-bar button {
+            background: #10a37f;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .tag-bar a {
+            background: #10a37f;
+            color: white;
+            padding: 6px 12px;
+            font-size: 14px;
+            border-radius: 5px;
+            text-decoration: none;
+        }
+        .tag-bar a.selected {
+            background: #2563eb;
+        }
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            background-color: #444654;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 8px 0;
+            position: relative;
+        }
+        .message pre {
+            position: relative;
+            background-color: #202123 !important;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: monospace;
+        }
+        .message pre code {
+            display: block;
+        }
+        .copy-code {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #10a37f;
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .meta {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 5px;
+        }
+        .delete-btn, .edit-btn {
+            background: #ef4444;
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .edit-btn {
+            background: #3b82f6;
+        }
+        .clear-btn {
+            background: #ef4444;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px auto;
+        }
+        .pagination {
+            text-align: center;
+            margin: 15px;
+        }
+        .pagination a {
+            color: #10a37f;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        .input-area {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            background: #40414f;
+        }
+        textarea, input[name="tags"] {
+            width: 100%;
+            resize: none;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: none;
+            background: #343541;
+            color: #fff;
+        }
+        .send-btn {
+            align-self: flex-end;
+            background: #10a37f;
+            border: none;
+            color: white;
+            padding: 10px 16px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<header>📓 BIJUSH NOTEBOOK</header>
+
+<form method="get" class="search-bar">
+    <input type="text" name="q" placeholder="🔍 Search notes..." value="{{ q }}">
+    <button type="submit">Search</button>
+</form>
+
+<div class="tag-bar">
+    <a href="/" class="{{ '' if selected_tag else 'selected' }}">All</a>
+    {% for tag in all_tags %}
+        <a href="/?tag={{ tag }}" class="{% if tag == selected_tag %}selected{% endif %}">{{ tag }}</a>
+    {% endfor %}
+</div>
+
+<div class="chat-container" id="chat">
+    {% for key, note in notes.items() %}
+    <div class="message">
+        {{ note["html"] | safe }}
+        {% if note.tags %}
+            <div><strong>Tags:</strong> {{ note.tags | join(", ") }}</div>
+        {% endif %}
+        <div class="meta">
+            Saved: {{ note["time"] }}
+            <form method="post" style="display:inline;">
+                <input type="hidden" name="delete" value="{{ key }}">
+                <button type="submit" class="delete-btn">Delete</button>
+            </form>
+            <form method="post" style="display:inline;">
+                <input type="hidden" name="edit_id" value="{{ key }}">
+                <input type="hidden" name="note" value="{{ note.raw }}">
+                <input type="hidden" name="tags" value="{{ note.tags | join(',') }}">
+                <button type="submit" class="edit-btn">Edit</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="pagination">
+        {% if next_last_key %}
+            <a href="/?last_key={{ next_last_key }}">Next Page ⏭️</a>
+        {% endif %}
+        {% if prev_key %}
+            <a href="/">⬅️ First Page</a>
+        {% endif %}
+    </div>
+
+    {% if notes %}
+    <form method="post">
+        <input type="hidden" name="clear_all" value="1">
+        <button type="submit" class="clear-btn" onclick="return confirm('Clear ALL notes?')">Clear All</button>
+    </form>
+    {% endif %}
+</div>
+
+<form method="post" class="input-area">
+    <textarea name="note" rows="3" placeholder="Write command, explanation, markdown..."></textarea>
+    <input type="text" name="tags" placeholder="Optional tags (comma-separated)">
+    <button type="submit" class="send-btn">Save</button>
+</form>
+
+<script>
+document.querySelectorAll('pre').forEach(function(pre) {
+    const button = document.createElement('button');
+    button.innerText = 'Copy code';
+    button.className = 'copy-code';
+    pre.appendChild(button);
+    button.addEventListener('click', function() {
+        const code = pre.querySelector('code').innerText;
+        navigator.clipboard.writeText(code).then(() => {
+            button.innerText = 'Copied!';
+            setTimeout(() => button.innerText = 'Copy code', 1000);
+        });
+    });
+});
+document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+</script>
+</body>
+</html>

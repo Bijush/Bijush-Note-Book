@@ -1,16 +1,12 @@
-from flask import Flask, render_template_string, request, redirect, url_for
-import json
-import os
-import markdown
+from flask import Flask, render_template, request, redirect, url_for
+import os, json, markdown
 from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, db
 
 app = Flask(__name__)
 
-# ===========================
-# ✅ Initialize Firebase Admin
-# ===========================
+# Firebase setup
 if os.path.exists("serviceAccountKey.json"):
     cred = credentials.Certificate("serviceAccountKey.json")
 else:
@@ -20,113 +16,9 @@ firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://note-book-464907-default-rtdb.firebaseio.com/'
 })
 
-ref = db.reference('/')  # Root
-
-# ===========================
-# ✅ HTML Template with SEARCH
-# ===========================
-HTML = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>📓 Termux Notebook</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdnjs.cloudflare/ajax/libs/pygments/2.17.2/styles/monokai.min.css" rel="stylesheet">
-    <style>
-        body { background-color: #343541; color: #d1d5db; font-family: Arial, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        header { padding: 20px; background: #202123; text-align: center; font-size: 24px; font-weight: bold; color: #fff; border-bottom: 1px solid #444; }
-        .search-bar { padding: 10px; background: #40414f; display: flex; }
-        .search-bar input { flex: 1; padding: 8px; font-size: 16px; border-radius: 5px; border: none; outline: none; background: #343541; color: #fff; }
-        .search-bar button { margin-left: 10px; background: #10a37f; border: none; color: white; padding: 8px 16px; font-size: 16px; border-radius: 5px; cursor: pointer; }
-        .chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
-        .message { background-color: #444654; padding: 15px; border-radius: 10px; margin: 8px 0; max-width: 95%; position: relative; word-wrap: break-word; }
-        .message pre { position: relative; background-color: #202123 !important; padding: 15px; border-radius: 6px; overflow-x: auto; font-family: monospace; margin: 10px 0; }
-        .message pre code { display: block; }
-        .copy-code { position: absolute; top: 8px; right: 8px; background: #10a37f; border: none; color: white; padding: 4px 8px; font-size: 12px; border-radius: 4px; cursor: pointer; }
-        .message h1, .message h2, .message h3 { color: #fff; margin: 10px 0 5px; }
-        .input-area { display: flex; padding: 10px; background: #40414f; }
-        textarea { flex: 1; resize: none; padding: 10px; font-size: 16px; border-radius: 5px; border: none; outline: none; background: #343541; color: #fff; }
-        .send-btn { margin-left: 10px; background: #10a37f; border: none; color: white; padding: 10px 16px; font-size: 16px; border-radius: 5px; cursor: pointer; }
-        .meta { font-size: 12px; color: #aaa; margin-top: 5px; }
-        .delete-btn { background: #ef4444; border: none; color: white; padding: 4px 8px; font-size: 12px; border-radius: 3px; cursor: pointer; margin-left: 10px; }
-        .clear-btn { background: #ef4444; border: none; color: white; padding: 6px 12px; font-size: 14px; border-radius: 5px; cursor: pointer; margin: 10px; align-self: flex-end; }
-        .pagination { text-align: center; margin: 15px; }
-        .pagination a { color: #10a37f; text-decoration: none; margin: 0 10px; }
-    </style>
-</head>
-<body>
-<header>📓 BIJUSH NOTEBOOK</header>
-
-    <form method="get" class="search-bar">
-        <input type="text" name="q" placeholder="🔍 Search notes..." value="{{ q }}">
-        <button type="submit">Search</button>
-    </form>
-
-    <div class="chat-container" id="chat">
-        {% for key, note in notes.items() %}
-        <div class="message">
-            {{ note["html"] | safe }}
-            <div class="meta">
-                Saved: {{ note["time"] }}
-                <form method="post" style="display:inline;">
-                    <input type="hidden" name="delete" value="{{ key }}">
-                    <button type="submit" class="delete-btn">Delete</button>
-                </form>
-            </div>
-        </div>
-        {% endfor %}
-
-        <div class="pagination">
-            {% if next_last_key %}
-                <a href="/?last_key={{ next_last_key }}">Next Page ⏭️</a>
-            {% endif %}
-            {% if prev_key %}
-                <a href="/">⬅️ First Page</a>
-            {% endif %}
-        </div>
-
-        {% if notes %}
-        <form method="post">
-            <input type="hidden" name="clear_all" value="1">
-            <button type="submit" class="clear-btn" onclick="return confirm('Clear ALL notes?')">Clear All</button>
-        </form>
-        {% endif %}
-    </div>
-
-    <form method="post" class="input-area">
-        <textarea name="note" rows="3" placeholder="Write command, explanation, markdown..."></textarea>
-        <button type="submit" class="send-btn">Save</button>
-    </form>
-
-<script>
-document.querySelectorAll('pre').forEach(function(pre) {
-    const button = document.createElement('button');
-    button.innerText = 'Copy code';
-    button.className = 'copy-code';
-    pre.appendChild(button);
-    button.addEventListener('click', function() {
-        const code = pre.querySelector('code').innerText;
-        navigator.clipboard.writeText(code).then(() => {
-            button.innerText = 'Copied!';
-            setTimeout(() => button.innerText = 'Copy code', 1000);
-        });
-    });
-});
-var chat = document.getElementById("chat");
-chat.scrollTop = chat.scrollHeight;
-</script>
-</body>
-</html>
-"""
-
-# ===========================
-# ✅ Page limit
-# ===========================
+ref = db.reference('/')
 PAGE_SIZE = 10
 
-# ===========================
-# ✅ Main route with search + pagination
-# ===========================
 @app.route("/", methods=["GET", "POST"])
 def index():
     notes_ref = ref.child('notes')
@@ -141,31 +33,52 @@ def index():
             notes_ref.child(key).delete()
             return redirect(url_for("index"))
 
-        note = request.form["note"]
-        if note.strip():
+        if "edit_id" in request.form:
+            key = request.form["edit_id"]
+            note = request.form["note"].strip()
+            tags = request.form["tags"].strip().split(",") if request.form["tags"].strip() else []
+            if note:
+                html_note = markdown.markdown(note, extensions=["fenced_code", "codehilite"])
+                updated_note = {
+                    "raw": note,
+                    "html": html_note,
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "tags": tags
+                }
+                notes_ref.child(key).update(updated_note)
+            return redirect(url_for("index"))
+
+        note = request.form["note"].strip()
+        tags = request.form["tags"].strip().split(",") if request.form["tags"].strip() else []
+        if note:
             html_note = markdown.markdown(note, extensions=["fenced_code", "codehilite"])
             new_note = {
-                "raw": note.strip(),
+                "raw": note,
                 "html": html_note,
-                "time": datetime.now().strftime("%Y-%m-%d %H:%M")
+                "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "tags": tags
             }
             notes_ref.push(new_note)
             return redirect(url_for("index"))
 
-    # ✅ Search keyword
+    # GET handling
     q = request.args.get('q', '').strip().lower()
-
-    # ✅ Pagination logic
+    tag_filter = request.args.get('tag', '').strip()
     last_key = request.args.get('last_key')
-    query = notes_ref.order_by_key().limit_to_last(200)  # fetch more if searching
-    snapshot = query.get() or {}
+
+    snapshot = notes_ref.order_by_key().limit_to_last(200).get() or {}
     notes = dict(snapshot)
 
-    # ✅ Filter if searching
     if q:
         notes = {k: v for k, v in notes.items() if q in v.get('raw', '').lower()}
 
-    # ✅ Manual pagination after filtering
+    if tag_filter:
+        notes = {
+            k: v for k, v in notes.items()
+            if tag_filter in [t.strip().lower() for t in v.get("tags", [])]
+        }
+
+    # Pagination
     sorted_keys = sorted(notes.keys(), reverse=True)
     page_keys = sorted_keys[:PAGE_SIZE]
     page_notes = {k: notes[k] for k in page_keys}
@@ -174,10 +87,11 @@ def index():
     if len(sorted_keys) > PAGE_SIZE:
         next_last_key = sorted_keys[PAGE_SIZE]
 
-    return render_template_string(HTML, notes=page_notes, next_last_key=next_last_key, prev_key=last_key, q=q)
+    all_tags = set(tag for note in notes.values() for tag in note.get("tags", []))
 
-# ===========================
-# ✅ Run
-# ===========================
+    return render_template("index.html", notes=page_notes, next_last_key=next_last_key,
+                           prev_key=last_key, q=q, all_tags=sorted(all_tags),
+                           selected_tag=tag_filter)
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
