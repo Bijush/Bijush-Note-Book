@@ -171,7 +171,7 @@ def index():
 
         note = request.form["note"]
         if note.strip():
-            html_note = markdown.markdown(note, extensions=["fenced_code", "codehilite"])
+            html_note = markdown.markdown(note, extensions=["fenced_code"])
             new_note = {
                 "raw": note.strip(),
                 "html": html_note,
