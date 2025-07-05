@@ -51,16 +51,18 @@ def index():
         html_note = render_markdown(note_text)
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-        if "edit_id" in request.form:
-            key = request.form["edit_id"]
-            if note_text:
-                notes_ref.child(key).update({
-                    "raw": note_text,
-                    "html": html_note,
-                    "time": now,
-                    "tags": tags
-                })
-            return redirect(url_for("index"))
+        edit_id = request.form.get("edit_id", "").strip()
+if edit_id:
+    # ✏️ Editing existing note
+    if note_text:
+        notes_ref.child(edit_id).update({
+            "raw": note_text,
+            "html": html_note,
+            "time": now,
+            "tags": tags
+        })
+    return redirect(url_for("index"))
+
 
         # ➕ Add new note
         if note_text:
