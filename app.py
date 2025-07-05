@@ -23,7 +23,7 @@ firebase_admin.initialize_app(cred, {
 ref = db.reference('/')  # Root
 
 # ===========================
-# ✅ HTML Template
+# ✅ HTML Template with PrismJS
 # ===========================
 HTML = """
 <!DOCTYPE html>
@@ -32,34 +32,38 @@ HTML = """
     <title>📓 Termux Notebook</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- ✅ Prism core CSS for syntax colors only -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.css" rel="stylesheet" />
+    <!-- ✅ PrismJS for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
 
     <style>
-        body { background: #343541; color: #d1d5db; font-family: Arial, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        body { background-color: #343541; color: #d1d5db; font-family: Arial, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
         header { padding: 20px; background: #202123; text-align: center; font-size: 24px; font-weight: bold; color: #fff; border-bottom: 1px solid #444; }
         .search-bar { padding: 10px; background: #40414f; display: flex; }
         .search-bar input { flex: 1; padding: 8px; font-size: 16px; border-radius: 5px; border: none; outline: none; background: #343541; color: #fff; }
         .search-bar button { margin-left: 10px; background: #10a37f; border: none; color: white; padding: 8px 16px; font-size: 16px; border-radius: 5px; cursor: pointer; }
         .chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
-        .message { background: #444654; padding: 15px; border-radius: 10px; margin: 8px 0; word-wrap: break-word; }
+        .message { background-color: #444654; padding: 15px; border-radius: 10px; margin: 8px 0; max-width: 95%; position: relative; word-wrap: break-word; }
         .code-container { position: relative; margin: 10px 0; }
-        pre { padding: 30px 15px 15px 70px; background: #202123 !important; border-radius: 6px; overflow-x: auto; font-family: monospace; }
-        code { background: none; } /* Let Prism show colors */
+        pre { border-radius: 6px; overflow-x: auto; }
         .language-label { position: absolute; top: 8px; left: 8px; background: #4b5563; color: #fff; font-size: 12px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
         .copy-code { position: absolute; top: 8px; right: 8px; background: #10a37f; border: none; color: white; padding: 4px 8px; font-size: 12px; border-radius: 4px; cursor: pointer; }
+        .message h1, .message h2, .message h3 { color: #fff; margin: 10px 0 5px; }
+        .input-area { display: flex; padding: 10px; background: #40414f; }
+        textarea { flex: 1; resize: none; padding: 10px; font-size: 16px; border-radius: 5px; border: none; outline: none; background: #343541; color: #fff; }
+        .send-btn { margin-left: 10px; background: #10a37f; border: none; color: white; padding: 10px 16px; font-size: 16px; border-radius: 5px; cursor: pointer; }
         .meta { font-size: 12px; color: #aaa; margin-top: 5px; }
         .delete-btn { background: #ef4444; border: none; color: white; padding: 4px 8px; font-size: 12px; border-radius: 3px; cursor: pointer; margin-left: 10px; }
         .clear-btn { background: #ef4444; border: none; color: white; padding: 6px 12px; font-size: 14px; border-radius: 5px; cursor: pointer; margin: 10px; align-self: flex-end; }
         .pagination { text-align: center; margin: 15px; }
         .pagination a { color: #10a37f; text-decoration: none; margin: 0 10px; }
-        .input-area { display: flex; padding: 10px; background: #40414f; }
-        textarea { flex: 1; resize: none; padding: 10px; font-size: 16px; border-radius: 5px; border: none; outline: none; background: #343541; color: #fff; }
-        .send-btn { margin-left: 10px; background: #10a37f; border: none; color: white; padding: 10px 16px; font-size: 16px; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
-<header>📓 BIJUSH NOTE BOOK</header>
+<header>📓 BIJUSH NOTEBOOK</header>
 
 <form method="get" class="search-bar">
     <input type="text" name="q" placeholder="🔍 Search notes..." value="{{ q }}">
@@ -101,9 +105,6 @@ HTML = """
     <textarea name="note" rows="3" placeholder="Write command, explanation, markdown..."></textarea>
     <button type="submit" class="send-btn">Save</button>
 </form>
-
-<!-- ✅ Prism core JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 
 <script>
 document.querySelectorAll('pre').forEach(function(pre) {
@@ -153,7 +154,7 @@ chat.scrollTop = chat.scrollHeight;
 PAGE_SIZE = 10
 
 # ===========================
-# ✅ Main route
+# ✅ Main route with search + pagination
 # ===========================
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -171,7 +172,7 @@ def index():
 
         note = request.form["note"]
         if note.strip():
-            html_note = markdown.markdown(note, extensions=["fenced_code"])
+            html_note = markdown.markdown(note, extensions=["fenced_code", "codehilite"])
             new_note = {
                 "raw": note.strip(),
                 "html": html_note,
@@ -180,7 +181,10 @@ def index():
             notes_ref.push(new_note)
             return redirect(url_for("index"))
 
+    # ✅ Search keyword
     q = request.args.get('q', '').strip().lower()
+
+    # ✅ Pagination logic
     last_key = request.args.get('last_key')
     query = notes_ref.order_by_key().limit_to_last(200)
     snapshot = query.get() or {}
@@ -199,8 +203,5 @@ def index():
 
     return render_template_string(HTML, notes=page_notes, next_last_key=next_last_key, prev_key=last_key, q=q)
 
-# ===========================
-# ✅ Run
-# ===========================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
