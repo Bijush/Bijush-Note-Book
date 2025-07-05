@@ -22,13 +22,19 @@ ref = db.reference('/')
 PAGE_SIZE = 10
 
 # ===========================
+# ✅ Markdown Renderer
+# ===========================
+def render_markdown(md_text):
+    return markdown.markdown(md_text, extensions=["fenced_code", "codehilite"])
+
+# ===========================
 # ✅ Main Route
 # ===========================
 @app.route("/", methods=["GET", "POST"])
 def index():
     notes_ref = ref.child('notes')
 
-    # 🔁 Handle POST (Add, Edit, Delete, Clear All)
+    # 🔁 Handle POST actions
     if request.method == "POST":
         if "clear_all" in request.form:
             notes_ref.delete()
@@ -41,20 +47,18 @@ def index():
 
         note_text = request.form.get("note", "").strip()
         tag_text = request.form.get("tags", "").strip()
-        tags = [t.strip() for t in tag_text.split(",")] if tag_text else []
-
-        html_note = markdown.markdown(note_text, extensions=["fenced_code", "codehilite"])
+        tags = [t.strip() for t in tag_text.split(",") if t.strip()]
+        html_note = render_markdown(note_text)
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
         if "edit_id" in request.form:
-            # ✏️ Editing existing note
             key = request.form["edit_id"]
             if note_text:
                 notes_ref.child(key).update({
                     "raw": note_text,
                     "html": html_note,
                     "time": now,
-                    "tags": tags or []
+                    "tags": tags
                 })
             return redirect(url_for("index"))
 
@@ -64,7 +68,7 @@ def index():
                 "raw": note_text,
                 "html": html_note,
                 "time": now,
-                "tags": tags or []
+                "tags": tags
             })
             return redirect(url_for("index"))
 
@@ -73,15 +77,15 @@ def index():
     tag_filter = request.args.get('tag', '').strip().lower()
     last_key = request.args.get('last_key')
 
-    # ⬇️ Fetch recent notes
+    # ⬇️ Fetch notes
     snapshot = notes_ref.order_by_key().limit_to_last(200).get() or {}
     notes = dict(snapshot)
 
-    # 🔎 Search filter
+    # 🔎 Filter by query
     if q:
         notes = {k: v for k, v in notes.items() if q in v.get('raw', '').lower()}
 
-    # 🏷️ Tag filter
+    # 🏷️ Filter by tag
     if tag_filter:
         notes = {
             k: v for k, v in notes.items()
@@ -97,11 +101,12 @@ def index():
     if len(sorted_keys) > PAGE_SIZE:
         next_last_key = sorted_keys[PAGE_SIZE]
 
-    # 🏷️ Collect all unique tags
+    # 🏷️ Collect unique tags
     all_tags = set()
     for note in notes.values():
         for tag in note.get("tags", []):
-            all_tags.add(tag.strip())
+            if tag:
+                all_tags.add(tag.strip())
 
     return render_template("index.html",
         notes=page_notes,
